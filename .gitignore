@@ -1,0 +1,5 @@
+*.exe
+comparador
+gerador
+base_teste.csv
+Makefile
