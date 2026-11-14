@@ -1,22 +1,20 @@
 #ifndef REGISTRO_H
 #define REGISTRO_H
 
-#include <stddef.h>
+#define TAM_MATRICULA 24
 
-#define MAT_MAX 24
+struct registro{
+    char matricula[TAM_MATRICULA];
+    char* nome;
+    char* curso;
+};
+typedef struct registro Registro;
 
-typedef struct {
-    char matricula[MAT_MAX];
-    char *nome;
-    char *curso;
-} Registro;
+typedef struct base* Base;
 
-typedef struct BaseDados BaseDados;
-
-BaseDados *base_carregar(const char *caminho, size_t limite);
-
-size_t base_tamanho(const BaseDados *b);
-Registro *base_registro(BaseDados *b, size_t i);
-void base_liberar(BaseDados *b);
+Base carregar_base(char* arquivo, int limite);
+int tamanho_base(Base b);
+Registro* acessar_registro(Base b, int posicao);
+void destruir_base(Base b);
 
 #endif

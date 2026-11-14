@@ -1,126 +1,90 @@
-#include "hash_encadeado.h"
+#include<stdlib.h>
+#include<string.h>
+#include"hash_encadeado.h"
+#include"funcoes_hash.h"
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+struct elem{
+    Registro* reg;
+    struct elem* prox;
+};
+typedef struct elem Elem;
 
-/*
- * Otimizacoes (o tratamento continua sendo encadeamento separado):
- *  - Nos alocados em blocos (pool) em vez de um malloc por no.
- *  - Cada no guarda os 8 primeiros bytes da matricula; strcmp so e chamado
- *    quando o prefixo bate.
- *  - "usado" (indices iniciais ja gerados, para contar colisoes) virou um
- *    vetor de bits: ocupa 8x menos memoria.
- */
-
-#define NOS_POR_BLOCO 65536u
-
-typedef struct NoHash {
-    uint64_t prefixo;
-    Registro *reg;
-    struct NoHash *prox;
-} NoHash;
-
-typedef struct BlocoNos {
-    struct BlocoNos *prox;
-    size_t usados;
-    NoHash nos[NOS_POR_BLOCO];
-} BlocoNos;
-
-struct HashEncadeado {
-    NoHash **baldes;
-    unsigned char *usado; /* 1 bit por indice */
-    size_t m, n, colisoes;
-    FuncaoHash h;
-    BlocoNos *blocos;
+struct hash_encadeado{
+    Elem** tabela;
+    char* usado;
+    int m;
+    int qtd;
+    int colisoes;
+    int tipo_hash;
 };
 
-static uint64_t prefixo_matricula(const char *s) {
-    char buf[8] = {0};
-    for (int i = 0; i < 8 && s[i]; i++) buf[i] = s[i];
-    uint64_t p;
-    memcpy(&p, buf, sizeof p);
-    return p;
-}
-
-static NoHash *novo_no(HashEncadeado *t) {
-    if (!t->blocos || t->blocos->usados == NOS_POR_BLOCO) {
-        BlocoNos *b = malloc(sizeof(BlocoNos));
-        if (!b) return NULL;
-        b->prox = t->blocos;
-        b->usados = 0;
-        t->blocos = b;
+HashEncadeado criar_hash_encadeado(int m, int tipo_hash){
+    HashEncadeado he = malloc(sizeof(struct hash_encadeado));
+    if(he != NULL){
+        he->tabela = calloc(m, sizeof(Elem*));
+        he->usado = calloc(m, sizeof(char));
+        if(he->tabela == NULL || he->usado == NULL){
+            free(he->tabela);
+            free(he->usado);
+            free(he);
+            return NULL;
+        }
+        he->m = m;
+        he->qtd = 0;
+        he->colisoes = 0;
+        he->tipo_hash = tipo_hash;
     }
-    return &t->blocos->nos[t->blocos->usados++];
+    return he;
 }
 
-HashEncadeado *he_criar(size_t m, FuncaoHash h) {
-    HashEncadeado *t = malloc(sizeof(HashEncadeado));
-    if (!t) return NULL;
-    t->baldes = calloc(m, sizeof(NoHash *));
-    t->usado = calloc(m / 8 + 1, 1);
-    if (!t->baldes || !t->usado) {
-        free(t->baldes);
-        free(t->usado);
-        free(t);
-        return NULL;
+int inserir_hash_encadeado(HashEncadeado he, Registro* r){
+    Elem* no = malloc(sizeof(Elem));
+    if(no != NULL){
+        int pos = calcular_hash(r->matricula, he->m, he->tipo_hash);
+        if(he->usado[pos])
+            he->colisoes++;
+        else
+            he->usado[pos] = 1;
+
+        no->reg = r;
+        no->prox = he->tabela[pos];
+        he->tabela[pos] = no;
+        he->qtd++;
+        return 1;
     }
-    t->m = m;
-    t->n = 0;
-    t->colisoes = 0;
-    t->h = h;
-    t->blocos = NULL;
-    return t;
+    return 0;
 }
 
-int he_inserir(HashEncadeado *t, Registro *r) {
-    NoHash *novo = novo_no(t);
-    if (!novo) return 0;
-    size_t i = t->h(r->matricula, t->m);
-    unsigned char bit = (unsigned char)(1u << (i & 7));
-    if (t->usado[i >> 3] & bit) t->colisoes++;
-    else t->usado[i >> 3] |= bit;
-
-    novo->prefixo = prefixo_matricula(r->matricula);
-    novo->reg = r;
-    novo->prox = t->baldes[i];
-    t->baldes[i] = novo;
-    t->n++;
-    return 1;
-}
-
-Registro *he_buscar(const HashEncadeado *t, const char *matricula) {
-    size_t i = t->h(matricula, t->m);
-    uint64_t pre = prefixo_matricula(matricula);
-    for (NoHash *p = t->baldes[i]; p; p = p->prox)
-        if (p->prefixo == pre && strcmp(p->reg->matricula, matricula) == 0) return p->reg;
+Registro* buscar_hash_encadeado(HashEncadeado he, char* matricula){
+    int pos = calcular_hash(matricula, he->m, he->tipo_hash);
+    Elem* aux = he->tabela[pos];
+    while(aux != NULL){
+        if(strcmp(aux->reg->matricula, matricula) == 0)
+            return aux->reg;
+        aux = aux->prox;
+    }
     return NULL;
 }
 
-size_t he_tamanho(const HashEncadeado *t) { return t->n; }
-size_t he_capacidade(const HashEncadeado *t) { return t->m; }
-double he_fator_carga(const HashEncadeado *t) { return (double)t->n / (double)t->m; }
-size_t he_colisoes(const HashEncadeado *t) { return t->colisoes; }
-
-size_t he_maior_lista(const HashEncadeado *t) {
-    size_t maior = 0;
-    for (size_t i = 0; i < t->m; i++) {
-        size_t c = 0;
-        for (NoHash *p = t->baldes[i]; p; p = p->prox) c++;
-        if (c > maior) maior = c;
-    }
-    return maior;
+int colisoes_hash_encadeado(HashEncadeado he){
+    return he->colisoes;
 }
 
-void he_liberar(HashEncadeado *t) {
-    if (!t) return;
-    BlocoNos *b = t->blocos;
-    while (b) {
-        BlocoNos *q = b->prox;
-        free(b);
-        b = q;
+double fator_carga_hash_encadeado(HashEncadeado he){
+    return (double)he->qtd / he->m;
+}
+
+void destruir_hash_encadeado(HashEncadeado he){
+    if(he == NULL) return;
+    for(int i = 0; i < he->m; i++){
+        Elem* aux = he->tabela[i];
+        while(aux != NULL){
+            Elem* atual = aux;
+            aux = aux->prox;
+            free(atual);
+        }
     }
-    free(t->baldes);
-    free(t->usado);
-    free(t);
+    free(he->tabela);
+    free(he->usado);
+    free(he);
 }

@@ -1,71 +1,75 @@
-#include "hash_aberto.h"
+#include<stdlib.h>
+#include<string.h>
+#include"hash_aberto.h"
+#include"funcoes_hash.h"
 
-#include <stdlib.h>
-#include <string.h>
-
-/*
- * Otimizacao: "usado" (indices iniciais ja gerados, para contar colisoes)
- * e um vetor de bits, 8x menor que um byte por indice.
- */
-struct HashAberto {
-    Registro **slots;
-    unsigned char *usado; /* 1 bit por indice */
-    size_t m, n, colisoes;
-    FuncaoHash h;
+struct hash_aberto{
+    Registro** tabela;
+    char* usado;
+    int m;
+    int qtd;
+    int colisoes;
+    int tipo_hash;
 };
 
-HashAberto *ha_criar(size_t m, FuncaoHash h) {
-    HashAberto *t = malloc(sizeof(HashAberto));
-    if (!t) return NULL;
-    t->slots = calloc(m, sizeof(Registro *));
-    t->usado = calloc(m / 8 + 1, 1);
-    if (!t->slots || !t->usado) {
-        free(t->slots);
-        free(t->usado);
-        free(t);
-        return NULL;
+HashAberto criar_hash_aberto(int m, int tipo_hash){
+    HashAberto ha = malloc(sizeof(struct hash_aberto));
+    if(ha != NULL){
+        ha->tabela = calloc(m, sizeof(Registro*));
+        ha->usado = calloc(m, sizeof(char));
+        if(ha->tabela == NULL || ha->usado == NULL){
+            free(ha->tabela);
+            free(ha->usado);
+            free(ha);
+            return NULL;
+        }
+        ha->m = m;
+        ha->qtd = 0;
+        ha->colisoes = 0;
+        ha->tipo_hash = tipo_hash;
     }
-    t->m = m;
-    t->n = 0;
-    t->colisoes = 0;
-    t->h = h;
-    return t;
+    return ha;
 }
 
-int ha_inserir(HashAberto *t, Registro *r) {
-    if (t->n >= t->m) return 0;
-    size_t i = t->h(r->matricula, t->m);
-    unsigned char bit = (unsigned char)(1u << (i & 7));
-    if (t->usado[i >> 3] & bit) t->colisoes++;
-    else t->usado[i >> 3] |= bit;
+int inserir_hash_aberto(HashAberto ha, Registro* r){
+    if(ha->qtd == ha->m) return 0;
+    int pos = calcular_hash(r->matricula, ha->m, ha->tipo_hash);
+    if(ha->usado[pos])
+        ha->colisoes++;
+    else
+        ha->usado[pos] = 1;
 
-    while (t->slots[i] != NULL) {
-        if (++i == t->m) i = 0;
+    while(ha->tabela[pos] != NULL){
+        pos = (pos + 1) % ha->m;
     }
-    t->slots[i] = r;
-    t->n++;
+    ha->tabela[pos] = r;
+    ha->qtd++;
     return 1;
 }
 
-Registro *ha_buscar(const HashAberto *t, const char *matricula) {
-    size_t i = t->h(matricula, t->m);
-    size_t passos = 0;
-    while (t->slots[i] != NULL && passos < t->m) {
-        if (strcmp(t->slots[i]->matricula, matricula) == 0) return t->slots[i];
-        if (++i == t->m) i = 0;
+Registro* buscar_hash_aberto(HashAberto ha, char* matricula){
+    int pos = calcular_hash(matricula, ha->m, ha->tipo_hash);
+    int passos = 0;
+    while(ha->tabela[pos] != NULL && passos < ha->m){
+        if(strcmp(ha->tabela[pos]->matricula, matricula) == 0)
+            return ha->tabela[pos];
+        pos = (pos + 1) % ha->m;
         passos++;
     }
     return NULL;
 }
 
-size_t ha_tamanho(const HashAberto *t) { return t->n; }
-size_t ha_capacidade(const HashAberto *t) { return t->m; }
-double ha_fator_carga(const HashAberto *t) { return (double)t->n / (double)t->m; }
-size_t ha_colisoes(const HashAberto *t) { return t->colisoes; }
+int colisoes_hash_aberto(HashAberto ha){
+    return ha->colisoes;
+}
 
-void ha_liberar(HashAberto *t) {
-    if (!t) return;
-    free(t->slots);
-    free(t->usado);
-    free(t);
+double fator_carga_hash_aberto(HashAberto ha){
+    return (double)ha->qtd / ha->m;
+}
+
+void destruir_hash_aberto(HashAberto ha){
+    if(ha == NULL) return;
+    free(ha->tabela);
+    free(ha->usado);
+    free(ha);
 }

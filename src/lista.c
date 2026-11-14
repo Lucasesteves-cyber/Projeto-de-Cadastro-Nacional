@@ -1,88 +1,64 @@
-#include "lista.h"
+#include<stdlib.h>
+#include<string.h>
+#include"lista.h"
+#include"funcoes_hash.h"
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+struct elem{
+    unsigned long long numero;
+    Registro* reg;
+    struct elem* prox;
+};
+typedef struct elem Elem;
 
-/*
- * Otimizacoes (a estrutura continua sendo uma lista unicamente encadeada):
- *  - Os nos sao alocados em blocos (pool) em vez de um malloc por no:
- *    insercao mais rapida e nos vizinhos na memoria (busca aproveita a cache).
- *  - Cada no guarda os 8 primeiros bytes da matricula (prefixo). Na busca,
- *    so se chama strcmp quando o prefixo bate; os outros nos sao descartados
- *    sem precisar acessar o Registro.
- */
-
-#define NOS_POR_BLOCO 65536u
-
-typedef struct No {
-    uint64_t prefixo;
-    Registro *reg;
-    struct No *prox;
-} No;
-
-typedef struct BlocoNos {
-    struct BlocoNos *prox;
-    size_t usados;
-    No nos[NOS_POR_BLOCO];
-} BlocoNos;
-
-struct Lista {
-    No *inicio;
-    size_t n;
-    BlocoNos *blocos;
+struct lista{
+    int qtd;
+    Elem* inicio;
 };
 
-static uint64_t prefixo_matricula(const char *s) {
-    char buf[8] = {0};
-    for (int i = 0; i < 8 && s[i]; i++) buf[i] = s[i];
-    uint64_t p;
-    memcpy(&p, buf, sizeof p);
-    return p;
-}
-
-Lista *lista_criar(void) {
-    return calloc(1, sizeof(Lista));
-}
-
-static No *novo_no(Lista *l) {
-    if (!l->blocos || l->blocos->usados == NOS_POR_BLOCO) {
-        BlocoNos *b = malloc(sizeof(BlocoNos));
-        if (!b) return NULL;
-        b->prox = l->blocos;
-        b->usados = 0;
-        l->blocos = b;
+Lista criar_lista(){
+    Lista li = malloc(sizeof(struct lista));
+    if(li != NULL){
+        li->qtd = 0;
+        li->inicio = NULL;
     }
-    return &l->blocos->nos[l->blocos->usados++];
+    return li;
 }
 
-int lista_inserir(Lista *l, Registro *r) {
-    No *novo = novo_no(l);
-    if (!novo) return 0;
-    novo->prefixo = prefixo_matricula(r->matricula);
-    novo->reg = r;
-    novo->prox = l->inicio;
-    l->inicio = novo;
-    l->n++;
-    return 1;
+int inserir_inicio(Lista li, Registro* r){
+    Elem* no = malloc(sizeof(Elem));
+    if(no != NULL){
+        no->numero = matricula_para_numero(r->matricula);
+        no->reg = r;
+        no->prox = li->inicio;
+        li->inicio = no;
+        li->qtd++;
+        return 1;
+    }
+    return 0;
 }
 
-Registro *lista_buscar(const Lista *l, const char *matricula) {
-    uint64_t pre = prefixo_matricula(matricula);
-    for (No *p = l->inicio; p; p = p->prox)
-        if (p->prefixo == pre && strcmp(p->reg->matricula, matricula) == 0) return p->reg;
+Registro* buscar_lista(Lista li, char* matricula){
+    unsigned long long numero = matricula_para_numero(matricula);
+    Elem* aux = li->inicio;
+    while(aux != NULL){
+        if(aux->numero == numero && strcmp(aux->reg->matricula, matricula) == 0)
+            return aux->reg;
+        aux = aux->prox;
+    }
     return NULL;
 }
 
-size_t lista_tamanho(const Lista *l) { return l->n; }
+int tamanho_lista(Lista li){
+    return li->qtd;
+}
 
-void lista_liberar(Lista *l) {
-    if (!l) return;
-    BlocoNos *b = l->blocos;
-    while (b) {
-        BlocoNos *q = b->prox;
-        free(b);
-        b = q;
+void destruir_lista(Lista li){
+    if(li == NULL) return;
+    Elem* aux = li->inicio;
+    while(aux != NULL){
+        Elem* atual = aux;
+        aux = aux->prox;
+        free(atual);
     }
-    free(l);
+    free(li);
 }

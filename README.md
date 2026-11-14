@@ -13,8 +13,10 @@ Comparação do desempenho de inserção e busca por matrícula em uma base de a
 | 4 | Tabela hash — encadeamento separado | Listas encadeadas | Divisão |
 | 5 | Tabela hash — encadeamento separado | Listas encadeadas | FNV-1a |
 
-Todas usam alocação dinâmica e estão organizadas como TADs (o `.h` expõe só a
-interface; a `struct` fica escondida no `.c`).
+Todas usam alocação dinâmica (`malloc` por nó) e estão organizadas como TADs, no
+mesmo padrão das aulas: o `.h` expõe só o tipo (`typedef struct lista* Lista;`) e
+as funções (`criar_lista`, `inserir_inicio`, `buscar_lista`, `destruir_lista`...);
+a `struct` fica escondida no `.c`.
 
 ```
 src/
@@ -23,8 +25,7 @@ src/
   funcoes_hash.h/.c    Funções hash (divisão e FNV-1a) e cálculo de primo
   hash_aberto.h/.c     Hash com endereçamento aberto (sondagem linear)
   hash_encadeado.h/.c  Hash com encadeamento separado
-  temporizador.h/.c    Relógio de alta resolução (QueryPerformanceCounter / clock_gettime)
-  main.c               Execução dos experimentos e geração das tabelas
+  main.c               Execução dos experimentos, cronômetro e geração das tabelas
 ferramentas/
   gerador.c            Gera uma base sintética para testes
 ```
@@ -68,7 +69,19 @@ m = menor primo ≥ N / 0,7
 | 1.000.000 | 1.428.587 |
 | 10.000.000 | ≈ 14.285.729 |
 
-O valor alvo pode ser mudado com `--alfa`.
+O valor alvo é a constante `FATOR_CARGA_ALVO` no `main.c`.
+
+### Busca na lista
+
+Cada nó da lista guarda, além do ponteiro para o registro, a matrícula convertida
+para número. Na busca, o `strcmp` só é chamado quando o número bate, o que deixa a
+busca sequencial bem mais rápida sem mudar a estrutura (continua O(n)).
+
+### Cronômetro
+
+O tempo é medido com `timespec_get` (padrão do C11, `time.h`), que tem resolução de
+microssegundos. O `clock()` não serve aqui: no Windows ele só mede milissegundos, e
+10.000 buscas em tabela hash levam por volta de 2 ms.
 
 ## Metodologia (conforme o enunciado)
 
@@ -114,22 +127,14 @@ No Linux/macOS:
 Isso roda os três volumes (100 mil, 1 milhão e 10 milhões). Imprime as tabelas na
 tela e salva tudo em `resultados/resultados.csv` (a pasta `resultados` precisa existir).
 
-Exemplo com só dois volumes:
+Também dá para escolher os volumes (2º argumento) e o arquivo de saída (3º argumento):
 
 ```bash
-.\comparador.exe base.csv -v 100000,1000000
+.\comparador.exe base.csv 100000,1000000 resultados/teste.csv
 ```
 
-Opções:
-
-| Opção | Descrição | Padrão |
-|-------|-----------|--------|
-| `-v 100000,1000000` | volumes a testar | `100000,1000000,10000000` |
-| `-a 0.7` | fator de carga final alvo (define `m`) | `0.7` |
-| `-b 10000` | buscas por etapa | `10000` |
-| `-s 2025` | semente do sorteio | `2025` |
-| `-o arq.csv` | arquivo de saída | `resultados/resultados.csv` |
-| `--lista-max N` | pula a lista para volumes > N | nunca pula |
+As demais configurações são constantes no início do `main.c`: `NUM_BUSCAS` (10.000),
+`FATOR_CARGA_ALVO` (0,7) e `SEMENTE` (2025, usada no sorteio das matrículas).
 
 ### Formato da base
 
@@ -144,7 +149,7 @@ Para testar sem a base oficial:
 ```
 
 ```bash
-.\comparador.exe base_teste.csv -v 100000,1000000
+.\comparador.exe base_teste.csv 100000,1000000
 ```
 
 (No Linux/macOS, troque `.\gerador.exe` e `.\comparador.exe` por `./gerador` e `./comparador`.)

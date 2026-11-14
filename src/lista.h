@@ -1,14 +1,9 @@
-#ifndef LISTA_H
-#define LISTA_H
+#include"registro.h"
 
-#include "registro.h"
+typedef struct lista* Lista;
 
-typedef struct Lista Lista;
-
-Lista *lista_criar(void);
-int lista_inserir(Lista *l, Registro *r);
-Registro *lista_buscar(const Lista *l, const char *matricula);
-size_t lista_tamanho(const Lista *l);
-void lista_liberar(Lista *l);
-
-#endif
+Lista criar_lista();
+int inserir_inicio(Lista li, Registro* r);
+Registro* buscar_lista(Lista li, char* matricula);
+int tamanho_lista(Lista li);
+void destruir_lista(Lista li);
