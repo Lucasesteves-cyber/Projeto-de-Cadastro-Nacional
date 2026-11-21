@@ -1,4 +1,7 @@
-#include"registro.h"
+#ifndef LISTA_H
+#define LISTA_H
+
+#include "registro.h"
 
 typedef struct lista* Lista;
 
@@ -7,3 +10,5 @@ int inserir_inicio(Lista li, Registro* r);
 Registro* buscar_lista(Lista li, char* matricula);
 int tamanho_lista(Lista li);
 void destruir_lista(Lista li);
+
+#endif

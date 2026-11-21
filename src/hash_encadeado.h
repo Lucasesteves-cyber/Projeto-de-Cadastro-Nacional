@@ -1,4 +1,7 @@
-#include"registro.h"
+#ifndef HASH_ENCADEADO_H
+#define HASH_ENCADEADO_H
+
+#include "registro.h"
 
 typedef struct hash_encadeado* HashEncadeado;
 
@@ -8,3 +11,5 @@ Registro* buscar_hash_encadeado(HashEncadeado he, char* matricula);
 int colisoes_hash_encadeado(HashEncadeado he);
 double fator_carga_hash_encadeado(HashEncadeado he);
 void destruir_hash_encadeado(HashEncadeado he);
+
+#endif

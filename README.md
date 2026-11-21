@@ -9,9 +9,9 @@ Comparação do desempenho de inserção e busca por matrícula em uma base de a
 |---|-----------|----------------------|-------------|
 | 1 | Lista unicamente encadeada | — | — |
 | 2 | Tabela hash — endereçamento aberto | Sondagem linear | Divisão |
-| 3 | Tabela hash — endereçamento aberto | Sondagem linear | FNV-1a |
+| 3 | Tabela hash — endereçamento aberto | Sondagem linear | Polinomial |
 | 4 | Tabela hash — encadeamento separado | Listas encadeadas | Divisão |
-| 5 | Tabela hash — encadeamento separado | Listas encadeadas | FNV-1a |
+| 5 | Tabela hash — encadeamento separado | Listas encadeadas | Polinomial |
 
 Todas usam alocação dinâmica (`malloc` por nó) e estão organizadas como TADs, no
 mesmo padrão das aulas: o `.h` expõe só o tipo (`typedef struct lista* Lista;`) e
@@ -22,7 +22,7 @@ a `struct` fica escondida no `.c`.
 src/
   registro.h/.c        TAD Registro e leitura da base CSV
   lista.h/.c           Lista unicamente encadeada (inserção no início O(1), busca O(n))
-  funcoes_hash.h/.c    Funções hash (divisão e FNV-1a) e cálculo de primo
+  funcoes_hash.h/.c    Funções hash (divisão e polinomial) e cálculo de primo
   hash_aberto.h/.c     Hash com endereçamento aberto (sondagem linear)
   hash_encadeado.h/.c  Hash com encadeamento separado
   main.c               Execução dos experimentos, cronômetro e geração das tabelas
@@ -33,12 +33,14 @@ ferramentas/
 ### Funções hash
 
 1. **Método da divisão** — `h(k) = k mod m`. A matrícula é convertida para
-   inteiro (se for só dígitos, é o próprio número; senão, polinômio de base 31).
+   inteiro de 64 bits com `strtoull` (o `atol` não serve: no Windows o `long` tem
+   32 bits e estoura com matrículas de 10 dígitos ou mais).
    `m` é primo, como recomendado para esse método.
-2. **FNV-1a (64 bits)** — método pesquisado. Percorre os caracteres da matrícula:
-   `h = h XOR byte; h = h × 1099511628211`, começando em `14695981039346656037`.
-   O resultado é reduzido com `mod m`. Espalha bem mesmo chaves com padrão
-   (sequenciais, com prefixos iguais), porque cada byte afeta todos os bits.
+2. **Polinomial** — método pesquisado. Trata a matrícula como texto e percorre
+   seus caracteres, como um polinômio de base 31 (regra de Horner):
+   `h = (h × 31 + caractere) mod m`, começando em `h = 0`. Cada dígito, e a
+   posição dele, influencia o resultado, então matrículas parecidas tendem a cair
+   em posições diferentes.
 
 ### Contagem de colisões
 
@@ -88,8 +90,10 @@ microssegundos. O `clock()` não serve aqui: no Windows ele só mede milissegund
 - Para cada volume (100 mil, 1 milhão, 10 milhões), as cinco estruturas começam vazias.
 - Os registros são inseridos **na ordem do arquivo**, em três etapas: 0–30%, 30–60% e 60–100%.
   O tempo de cada etapa é medido separadamente.
-- Após cada etapa, são sorteadas **10.000 matrículas já inseridas** (gerador
-  splitmix64 com semente fixa, ou seja, reprodutível). As **mesmas matrículas, na mesma
+- Após cada etapa, são sorteadas **10.000 matrículas já inseridas** (`srand` com
+  semente fixa, ou seja, reprodutível). Como no Windows o `rand()` só vai até 32.767,
+  dois sorteios são combinados (`rand() * (RAND_MAX + 1) + rand()`) para alcançar
+  qualquer posição, mesmo com 10 milhões de registros. As **mesmas matrículas, na mesma
   ordem**, são buscadas nas cinco estruturas, e o tempo total é medido.
 - Não entram na medição: a leitura do arquivo e o sorteio das matrículas.
 - Também são registrados: colisões da etapa, colisões acumuladas e fator de carga `α = n/m`.
@@ -158,7 +162,7 @@ Para testar sem a base oficial:
 
 A busca na **lista** é O(n). Com 10 milhões de registros, são até 10.000 × 5 milhões
 de comparações por etapa, e isso pode levar **horas** (no teste com 1 milhão, as buscas
-na lista levaram ~200 s no total). As tabelas hash terminam em segundos. Rode o
+na lista levaram ~105 s no total). As tabelas hash terminam em segundos. Rode o
 experimento completo com antecedência.
 
 ## Saída (`resultados.csv`)

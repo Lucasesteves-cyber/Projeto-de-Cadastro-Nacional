@@ -1,5 +1,8 @@
 *.exe
+*.o
 comparador
 gerador
-base_teste.csv
 Makefile
+/*.csv
+Projeto-de-Cadastro-Nacional-main/
+Projeto-de-Cadastro-Nacional-main.zip

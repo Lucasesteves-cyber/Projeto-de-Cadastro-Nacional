@@ -1,8 +1,12 @@
-#define DIVISAO 0
-#define FNV1A 1
+#ifndef FUNCOES_HASH_H
+#define FUNCOES_HASH_H
 
-unsigned long long matricula_para_numero(char* matricula);
+#define DIVISAO 0
+#define POLINOMIAL 1
+
 int hash_divisao(char* matricula, int m);
-int hash_fnv1a(char* matricula, int m);
+int hash_polinomial(char* matricula, int m);
 int calcular_hash(char* matricula, int m, int tipo_hash);
 int proximo_primo(int n);
+
+#endif
