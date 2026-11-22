@@ -140,13 +140,24 @@ Também dá para escolher os volumes (2º argumento) e o arquivo de saída (3º 
 As demais configurações são constantes no início do `main.c`: `NUM_BUSCAS` (10.000),
 `FATOR_CARGA_ALVO` (0,7) e `SEMENTE` (2025, usada no sorteio das matrículas).
 
+Sem nenhum argumento, o programa lê `alunos.csv` (o arquivo que o gerador cria por padrão).
+
 ### Formato da base
 
-CSV com as colunas matrícula, nome e curso. O separador (`,` `;` ou TAB) e o
-cabeçalho são detectados sozinhos. Se houver cabeçalho, as colunas são achadas pelo
-nome (`matricula`, `nome`, `curso`), então a ordem pode ser outra.
+CSV com uma linha por aluno, nesta ordem: **matrícula, nome, curso**. Exemplo:
 
-Para testar sem a base oficial:
+```
+matricula,nome,curso
+202600002,Vinicius Almeida Fernandes,Contabilidade
+```
+
+- O separador (`,`, `;` ou TAB) é detectado na primeira linha.
+- O cabeçalho é opcional: a primeira linha só é pulada se não começar com dígito.
+- Cada linha pode ter até 255 caracteres. Linhas vazias ou com menos de três campos são ignoradas.
+
+### Base de teste (gerador)
+
+Enquanto a base oficial não está disponível, o `gerador` cria uma base sintética:
 
 ```bash
 .\gerador.exe 1000000 base_teste.csv
@@ -156,13 +167,19 @@ Para testar sem a base oficial:
 .\comparador.exe base_teste.csv 100000,1000000
 ```
 
+Sem argumentos, o gerador pergunta a quantidade e grava em `alunos.csv`. As matrículas
+seguem o formato `2026xxxxx`, são únicas e crescentes (`202600000 + 7·i + sorteio de 0 a 6`),
+e nomes e cursos são sorteados de listas fixas. O gerador usa `srand(time(NULL))`, então
+cada base gerada é diferente. Os arquivos `.csv` da raiz do projeto ficam fora do Git
+(`.gitignore`), porque são grandes e podem ser recriados.
+
 (No Linux/macOS, troque `.\gerador.exe` e `.\comparador.exe` por `./gerador` e `./comparador`.)
 
 ### Tempo de execução
 
 A busca na **lista** é O(n). Com 10 milhões de registros, são até 10.000 × 5 milhões
 de comparações por etapa, e isso pode levar **horas** (no teste com 1 milhão, as buscas
-na lista levaram ~105 s no total). As tabelas hash terminam em segundos. Rode o
+na lista levaram cerca de 2 minutos no total). As tabelas hash terminam em segundos. Rode o
 experimento completo com antecedência.
 
 ## Saída (`resultados.csv`)
@@ -173,3 +190,47 @@ volume,estrutura,etapa_pct,n,m,tempo_insercao_s,tempo_busca_s,buscas,encontrados
 
 A coluna `encontrados` deve ser igual a `buscas` (10.000). Ela confirma que todas as
 matrículas sorteadas foram achadas.
+
+## Resultados (base de teste)
+
+Teste com a base gerada pelo `gerador` (1 milhão de registros), volumes de 100 mil e
+1 milhão. Os dados completos estão em [`resultados/teste.csv`](resultados/teste.csv).
+
+**Volume de 1.000.000 registros (m = 1.428.587)**
+
+| Estrutura | Etapa | Inserção (s) | Busca, 10.000 (s) | Colisões etapa | Colisões total | α |
+|-----------|------:|-------------:|------------------:|---------------:|---------------:|---:|
+| Lista encadeada | 30% | 0,0205 | 17,2618 | — | — | — |
+| Lista encadeada | 60% | 0,0219 | 43,3908 | — | — | — |
+| Lista encadeada | 100% | 0,0316 | 66,0476 | — | — | — |
+| Hash aberto + Divisão | 30% | 0,0120 | 0,0017 | 13.672 | 13.672 | 0,21 |
+| Hash aberto + Divisão | 60% | 0,0148 | 0,0017 | 65.962 | 79.634 | 0,42 |
+| Hash aberto + Divisão | 100% | 0,0224 | 0,0022 | 163.876 | 243.510 | 0,70 |
+| Hash aberto + Polinomial | 30% | 0,0227 | 0,0020 | 46.942 | 46.942 | 0,21 |
+| Hash aberto + Polinomial | 60% | 0,0287 | 0,0018 | 90.674 | 137.616 | 0,42 |
+| Hash aberto + Polinomial | 100% | 0,0321 | 0,0026 | 173.426 | 311.042 | 0,70 |
+| Encadeado + Divisão | 30% | 0,0222 | 0,0036 | 13.672 | 13.672 | 0,21 |
+| Encadeado + Divisão | 60% | 0,0248 | 0,0028 | 65.962 | 79.634 | 0,42 |
+| Encadeado + Divisão | 100% | 0,0360 | 0,0032 | 163.876 | 243.510 | 0,70 |
+| Encadeado + Polinomial | 30% | 0,0322 | 0,0031 | 46.942 | 46.942 | 0,21 |
+| Encadeado + Polinomial | 60% | 0,0412 | 0,0026 | 90.674 | 137.616 | 0,42 |
+| Encadeado + Polinomial | 100% | 0,0453 | 0,0034 | 173.426 | 311.042 | 0,70 |
+
+**O que o teste mostra**
+
+- **Lista x hash:** com 1 milhão de registros, as 10.000 buscas levam cerca de 66 s na lista
+  e cerca de 2 ms nas tabelas hash, uma diferença de mais de 20.000 vezes. O tempo da lista
+  cresce junto com o número de registros (O(n)); o das tabelas hash quase não muda (O(1) em média).
+- **Inserção:** é rápida em todas as estruturas, porque a lista insere no início e as
+  tabelas hash calculam a posição direto.
+- **Divisão x Polinomial:** nesta base, a Divisão gerou menos colisões (243.510 contra 311.042).
+  As matrículas do gerador são números crescentes com passo quase fixo, e `k mod m` com `m` primo
+  espalha bem esse tipo de sequência. A Polinomial trata a matrícula como texto e se comporta
+  mais como uma distribuição aleatória.
+- **Aberto x encadeado:** as colisões são iguais para a mesma função, porque dependem só do índice
+  inicial. O hash aberto foi um pouco mais rápido nas buscas, já que percorre um vetor contínuo
+  na memória, enquanto o encadeado segue ponteiros para nós espalhados.
+
+> Esses números são da base sintética. O experimento oficial (100 mil, 1 milhão e
+> 10 milhões, com a base disponibilizada) deve ser rodado com `.\comparador.exe base.csv`,
+> e os resultados ficam em `resultados/resultados.csv`.
