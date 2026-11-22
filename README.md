@@ -69,7 +69,7 @@ m = menor primo ≥ N / 0,7
 |--------|---|
 | 100.000 | 142.867 |
 | 1.000.000 | 1.428.587 |
-| 10.000.000 | ≈ 14.285.729 |
+| 10.000.000 | 14.285.717 |
 
 O valor alvo é a constante `FATOR_CARGA_ALVO` no `main.c`.
 
@@ -157,15 +157,18 @@ matricula,nome,curso
 
 ### Base de teste (gerador)
 
-Enquanto a base oficial não está disponível, o `gerador` cria uma base sintética:
+O enunciado não fornece uma base de dados, então o `gerador` cria a base usada no
+experimento. A base dos resultados abaixo tem 10 milhões de registros (~454 MB):
 
 ```bash
-.\gerador.exe 1000000 base_teste.csv
+.\gerador.exe 10000000 base_10m.csv
 ```
 
 ```bash
-.\comparador.exe base_teste.csv 100000,1000000
+.\comparador.exe base_10m.csv 100000,1000000,10000000 resultados\resultados.csv
 ```
+
+Os volumes de 100 mil e 1 milhão usam os primeiros registros da mesma base.
 
 Sem argumentos, o gerador pergunta a quantidade e grava em `alunos.csv`. As matrículas
 seguem o formato `2026xxxxx`, são únicas e crescentes (`202600000 + 7·i + sorteio de 0 a 6`),
@@ -178,9 +181,9 @@ cada base gerada é diferente. Os arquivos `.csv` da raiz do projeto ficam fora 
 ### Tempo de execução
 
 A busca na **lista** é O(n). Com 10 milhões de registros, são até 10.000 × 5 milhões
-de comparações por etapa, e isso pode levar **horas** (no teste com 1 milhão, as buscas
-na lista levaram cerca de 2 minutos no total). As tabelas hash terminam em segundos. Rode o
-experimento completo com antecedência.
+de comparações por etapa. No experimento, as buscas na lista levaram cerca de 100 s no
+volume de 1 milhão e cerca de **17 minutos** no de 10 milhões. As tabelas hash terminam em
+segundos. A execução completa (três volumes) leva por volta de 20 a 25 minutos e usa alguns GB de RAM.
 
 ## Saída (`resultados.csv`)
 
@@ -191,46 +194,95 @@ volume,estrutura,etapa_pct,n,m,tempo_insercao_s,tempo_busca_s,buscas,encontrados
 A coluna `encontrados` deve ser igual a `buscas` (10.000). Ela confirma que todas as
 matrículas sorteadas foram achadas.
 
-## Resultados (base de teste)
+## Resultados
 
-Teste com a base gerada pelo `gerador` (1 milhão de registros), volumes de 100 mil e
-1 milhão. Os dados completos estão em [`resultados/teste.csv`](resultados/teste.csv).
+Experimento com a base de 10 milhões gerada pelo `gerador`, nos volumes de 100 mil,
+1 milhão e 10 milhões. Os dados completos estão em
+[`resultados/resultados.csv`](resultados/resultados.csv). Tempos em segundos; a busca
+é o total das 10.000 buscas de cada etapa.
+
+**Volume de 100.000 registros (m = 142.867)**
+
+| Estrutura | Etapa | Inserção (s) | Busca (s) | Colisões etapa | Colisões total | α |
+|-----------|------:|-------------:|----------:|---------------:|---------------:|---:|
+| Lista encadeada | 30% | 0,0024 | 0,2799 | — | — | — |
+| Lista encadeada | 60% | 0,0024 | 0,8876 | — | — | — |
+| Lista encadeada | 100% | 0,0036 | 1,5932 | — | — | — |
+| Hash aberto + Divisão | 30% | 0,0012 | 0,0012 | 1.401 | 1.401 | 0,21 |
+| Hash aberto + Divisão | 60% | 0,0013 | 0,0030 | 6.683 | 8.084 | 0,42 |
+| Hash aberto + Divisão | 100% | 0,0020 | 0,0017 | 16.280 | 24.364 | 0,70 |
+| Hash aberto + Polinomial | 30% | 0,0013 | 0,0009 | 1.824 | 1.824 | 0,21 |
+| Hash aberto + Polinomial | 60% | 0,0014 | 0,0017 | 7.032 | 8.856 | 0,42 |
+| Hash aberto + Polinomial | 100% | 0,0027 | 0,0014 | 16.618 | 25.474 | 0,70 |
+| Encadeado + Divisão | 30% | 0,0022 | 0,0015 | 1.401 | 1.401 | 0,21 |
+| Encadeado + Divisão | 60% | 0,0023 | 0,0042 | 6.683 | 8.084 | 0,42 |
+| Encadeado + Divisão | 100% | 0,0046 | 0,0026 | 16.280 | 24.364 | 0,70 |
+| Encadeado + Polinomial | 30% | 0,0029 | 0,0019 | 1.824 | 1.824 | 0,21 |
+| Encadeado + Polinomial | 60% | 0,0029 | 0,0022 | 7.032 | 8.856 | 0,42 |
+| Encadeado + Polinomial | 100% | 0,0067 | 0,0020 | 16.618 | 25.474 | 0,70 |
 
 **Volume de 1.000.000 registros (m = 1.428.587)**
 
-| Estrutura | Etapa | Inserção (s) | Busca, 10.000 (s) | Colisões etapa | Colisões total | α |
-|-----------|------:|-------------:|------------------:|---------------:|---------------:|---:|
-| Lista encadeada | 30% | 0,0205 | 17,2618 | — | — | — |
-| Lista encadeada | 60% | 0,0219 | 43,3908 | — | — | — |
-| Lista encadeada | 100% | 0,0316 | 66,0476 | — | — | — |
-| Hash aberto + Divisão | 30% | 0,0120 | 0,0017 | 13.672 | 13.672 | 0,21 |
-| Hash aberto + Divisão | 60% | 0,0148 | 0,0017 | 65.962 | 79.634 | 0,42 |
-| Hash aberto + Divisão | 100% | 0,0224 | 0,0022 | 163.876 | 243.510 | 0,70 |
-| Hash aberto + Polinomial | 30% | 0,0227 | 0,0020 | 46.942 | 46.942 | 0,21 |
-| Hash aberto + Polinomial | 60% | 0,0287 | 0,0018 | 90.674 | 137.616 | 0,42 |
-| Hash aberto + Polinomial | 100% | 0,0321 | 0,0026 | 173.426 | 311.042 | 0,70 |
-| Encadeado + Divisão | 30% | 0,0222 | 0,0036 | 13.672 | 13.672 | 0,21 |
-| Encadeado + Divisão | 60% | 0,0248 | 0,0028 | 65.962 | 79.634 | 0,42 |
-| Encadeado + Divisão | 100% | 0,0360 | 0,0032 | 163.876 | 243.510 | 0,70 |
-| Encadeado + Polinomial | 30% | 0,0322 | 0,0031 | 46.942 | 46.942 | 0,21 |
-| Encadeado + Polinomial | 60% | 0,0412 | 0,0026 | 90.674 | 137.616 | 0,42 |
-| Encadeado + Polinomial | 100% | 0,0453 | 0,0034 | 173.426 | 311.042 | 0,70 |
+| Estrutura | Etapa | Inserção (s) | Busca (s) | Colisões etapa | Colisões total | α |
+|-----------|------:|-------------:|----------:|---------------:|---------------:|---:|
+| Lista encadeada | 30% | 0,0215 | 14,1905 | — | — | — |
+| Lista encadeada | 60% | 0,0221 | 31,9675 | — | — | — |
+| Lista encadeada | 100% | 0,0296 | 52,7673 | — | — | — |
+| Hash aberto + Divisão | 30% | 0,0132 | 0,0015 | 13.702 | 13.702 | 0,21 |
+| Hash aberto + Divisão | 60% | 0,0127 | 0,0017 | 66.561 | 80.263 | 0,42 |
+| Hash aberto + Divisão | 100% | 0,0195 | 0,0020 | 162.648 | 242.911 | 0,70 |
+| Hash aberto + Polinomial | 30% | 0,0216 | 0,0013 | 47.011 | 47.011 | 0,21 |
+| Hash aberto + Polinomial | 60% | 0,0203 | 0,0019 | 90.376 | 137.387 | 0,42 |
+| Hash aberto + Polinomial | 100% | 0,0321 | 0,0026 | 173.040 | 310.427 | 0,70 |
+| Encadeado + Divisão | 30% | 0,0224 | 0,0024 | 13.702 | 13.702 | 0,21 |
+| Encadeado + Divisão | 60% | 0,0236 | 0,0028 | 66.561 | 80.263 | 0,42 |
+| Encadeado + Divisão | 100% | 0,0316 | 0,0033 | 162.648 | 242.911 | 0,70 |
+| Encadeado + Polinomial | 30% | 0,0361 | 0,0023 | 47.011 | 47.011 | 0,21 |
+| Encadeado + Polinomial | 60% | 0,0308 | 0,0026 | 90.376 | 137.387 | 0,42 |
+| Encadeado + Polinomial | 100% | 0,0411 | 0,0030 | 173.040 | 310.427 | 0,70 |
 
-**O que o teste mostra**
+**Volume de 10.000.000 registros (m = 14.285.717)**
 
-- **Lista x hash:** com 1 milhão de registros, as 10.000 buscas levam cerca de 66 s na lista
-  e cerca de 2 ms nas tabelas hash, uma diferença de mais de 20.000 vezes. O tempo da lista
-  cresce junto com o número de registros (O(n)); o das tabelas hash quase não muda (O(1) em média).
-- **Inserção:** é rápida em todas as estruturas, porque a lista insere no início e as
-  tabelas hash calculam a posição direto.
-- **Divisão x Polinomial:** nesta base, a Divisão gerou menos colisões (243.510 contra 311.042).
-  As matrículas do gerador são números crescentes com passo quase fixo, e `k mod m` com `m` primo
-  espalha bem esse tipo de sequência. A Polinomial trata a matrícula como texto e se comporta
-  mais como uma distribuição aleatória.
+| Estrutura | Etapa | Inserção (s) | Busca (s) | Colisões etapa | Colisões total | α |
+|-----------|------:|-------------:|----------:|---------------:|---------------:|---:|
+| Lista encadeada | 30% | 0,2158 | 161,6944 | — | — | — |
+| Lista encadeada | 60% | 0,2231 | 333,5586 | — | — | — |
+| Lista encadeada | 100% | 0,3106 | 555,9513 | — | — | — |
+| Hash aberto + Divisão | 30% | 0,1201 | 0,0021 | 136.724 | 136.724 | 0,21 |
+| Hash aberto + Divisão | 60% | 0,1354 | 0,0031 | 663.305 | 800.029 | 0,42 |
+| Hash aberto + Divisão | 100% | 0,2120 | 0,0029 | 1.634.757 | 2.434.786 | 0,70 |
+| Hash aberto + Polinomial | 30% | 0,1843 | 0,0025 | 588.025 | 588.025 | 0,21 |
+| Hash aberto + Polinomial | 60% | 2,3959 | 0,0166 | 1.007.405 | 1.595.430 | 0,42 |
+| Hash aberto + Polinomial | 100% | 7,3900 | 0,0329 | 1.491.940 | 3.087.370 | 0,70 |
+| Encadeado + Divisão | 30% | 0,2193 | 0,0032 | 136.724 | 136.724 | 0,21 |
+| Encadeado + Divisão | 60% | 0,2278 | 0,0042 | 663.305 | 800.029 | 0,42 |
+| Encadeado + Divisão | 100% | 0,3426 | 0,0054 | 1.634.757 | 2.434.786 | 0,70 |
+| Encadeado + Polinomial | 30% | 0,3171 | 0,0031 | 588.025 | 588.025 | 0,21 |
+| Encadeado + Polinomial | 60% | 0,3406 | 0,0045 | 1.007.405 | 1.595.430 | 0,42 |
+| Encadeado + Polinomial | 100% | 0,4588 | 0,0053 | 1.491.940 | 3.087.370 | 0,70 |
+
+Em todas as etapas, as 10.000 matrículas sorteadas foram encontradas pelas cinco estruturas
+(coluna `encontrados` do CSV).
+
+**Análise**
+
+- **Lista x hash:** a busca na lista cresce junto com o volume (O(n)). As 10.000 buscas da última
+  etapa levam ~1,6 s com 100 mil registros, ~53 s com 1 milhão e ~556 s (mais de 9 minutos) com
+  10 milhões, cerca de 10 vezes mais a cada volume. Nas tabelas hash, o mesmo trabalho leva
+  poucos milissegundos em qualquer volume (O(1) em média). Com 10 milhões, a diferença passa de
+  100.000 vezes.
+- **Inserção:** é rápida em quase todas as estruturas. A lista insere no início (O(1)), e as tabelas
+  hash calculam a posição direto. A exceção é o hash aberto com a Polinomial em 10 milhões (próximo item).
+- **Divisão x Polinomial:** nesta base, a Divisão gera menos colisões em todos os volumes
+  (2.434.786 contra 3.087.370 em 10 milhões). As matrículas do gerador são números crescentes
+  com passo quase fixo, e `k mod m` com `m` primo espalha bem esse tipo de sequência. A Polinomial
+  trata a matrícula como texto. Como matrículas vizinhas diferem só nos últimos dígitos, os índices
+  delas saem próximos entre si e formam grupos na tabela.
+- **Agrupamento primário:** no hash aberto, esses grupos da Polinomial se juntam com a sondagem
+  linear. Em 10 milhões, a inserção da etapa 60–100% subiu para ~7,4 s (contra ~0,2 s da Divisão) e
+  a busca para ~33 ms, 10 vezes mais que as outras tabelas. O encadeamento separado com a mesma
+  função não sofre esse efeito (0,46 s), porque cada colisão fica na lista do próprio índice e não
+  ocupa as posições vizinhas. Isso confirma por que o fator de carga foi limitado a 0,7.
 - **Aberto x encadeado:** as colisões são iguais para a mesma função, porque dependem só do índice
-  inicial. O hash aberto foi um pouco mais rápido nas buscas, já que percorre um vetor contínuo
-  na memória, enquanto o encadeado segue ponteiros para nós espalhados.
-
-> Esses números são da base sintética. O experimento oficial (100 mil, 1 milhão e
-> 10 milhões, com a base disponibilizada) deve ser rodado com `.\comparador.exe base.csv`,
-> e os resultados ficam em `resultados/resultados.csv`.
+  inicial. Com a Divisão, o hash aberto é um pouco mais rápido que o encadeado, já que percorre um
+  vetor contínuo na memória, enquanto o encadeado segue ponteiros para nós espalhados.
